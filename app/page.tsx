@@ -1,70 +1,58 @@
 "use client"
 
-import { useAuth } from "@/lib/auth/context"
-import { useRouter } from "next/navigation"
-import { useEffect } from "react"
-import StudentDashboard from "@/components/dashboard/student-dashboard"
-import InstructorDashboard from "@/components/dashboard/instructor-dashboard"
-import PatientProfile from "@/components/patient-profile"
+import { useState } from "react"
+import { PanelGroup, Panel, PanelResizeHandle } from "react-resizable-panels"
+import PatientSidebar from "@/components/patient-sidebar"
 import ChatInterface from "@/components/chat-interface"
-import ObjectivesPanel from "@/components/objectives-panel"
-import { patientData } from "@/lib/patient-data"
-import { Button } from "@/components/ui/button"
+import { patients } from "@/lib/patient-data"
+import type { Patient } from "@/lib/types"
 
 export default function Home() {
-  const { user, profile, loading, signOut } = useAuth()
-  const router = useRouter()
-
-  useEffect(() => {
-    if (!loading && !user) {
-      router.push("/auth")
-    }
-  }, [user, loading, router])
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div>Loading...</div>
-      </div>
-    )
-  }
-
-  if (!user || !profile) {
-    return null
-  }
+  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(patients[0] || null)
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <header className="bg-white border-b px-4 py-3">
-        <div className="container mx-auto flex items-center justify-between">
-          <h1 className="text-xl font-semibold">Medical Education Platform</h1>
-          <div className="flex items-center gap-4">
-            <span className="text-sm text-muted-foreground">
-              Welcome, {profile.full_name} ({profile.role})
-            </span>
-            <Button variant="outline" size="sm" onClick={signOut}>
-              Sign Out
-            </Button>
+    <div className="min-h-screen bg-slate-50 flex flex-col">
+      {/* Header */}
+      <header className="bg-white border-b px-6 py-4 shadow-sm">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Patient Actor</h1>
+            <p className="text-sm text-gray-600">Medical Diagnosis Training Simulation</p>
+          </div>
+          <div className="text-sm text-gray-600">
+            {selectedPatient && `Selected: ${selectedPatient.demographics}`}
           </div>
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8">
-        {profile.role === "student" && <StudentDashboard />}
-        {profile.role === "instructor" && <InstructorDashboard />}
+      {/* Main Content */}
+      <main className="flex-1 overflow-hidden p-4">
+        <PanelGroup direction="horizontal" className="rounded-lg border bg-white">
+          {/* Sidebar */}
+          <Panel defaultSize={25} minSize={20} maxSize={35}>
+            <PatientSidebar
+              patients={patients}
+              selectedPatient={selectedPatient}
+              onSelectPatient={setSelectedPatient}
+            />
+          </Panel>
 
-        {/* Show simulation interface if accessing directly */}
-        {typeof window !== "undefined" && window.location.pathname === "/simulation" && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-8">
-            <div className="lg:col-span-1">
-              <PatientProfile patient={patientData} />
-              <ObjectivesPanel className="mt-6" />
-            </div>
-            <div className="lg:col-span-2">
-              <ChatInterface />
-            </div>
-          </div>
-        )}
+          <PanelResizeHandle />
+
+          {/* Chat Area */}
+          <Panel defaultSize={75} minSize={65}>
+            {selectedPatient ? (
+              <ChatInterface patient={selectedPatient} />
+            ) : (
+              <div className="flex items-center justify-center h-full text-gray-500">
+                <div className="text-center">
+                  <p className="text-lg font-medium">Select a patient to begin</p>
+                  <p className="text-sm">Choose from the list on the left to start the simulation</p>
+                </div>
+              </div>
+            )}
+          </Panel>
+        </PanelGroup>
       </main>
     </div>
   )
