@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { createAccount } from "@/lib/actions/accounts"
 
 export default function SignUpPage() {
     const router = useRouter()
@@ -41,30 +42,7 @@ export default function SignUpPage() {
         setLoading(true)
 
         try {
-            const result = await signUp.email({
-                email,
-                password,
-                name,
-            })
-
-            if (result.error) {
-                setError(result.error.message || "Failed to sign up")
-            } else {
-                // Successful signup - create starter patient actor
-                if (result.data?.user?.id) {
-                    try {
-                        await createStarterPatientActor(result.data.user.id)
-                        console.log('✅ Created starter patient actor')
-                    } catch (actorError) {
-                        console.error('Failed to create starter patient actor:', actorError)
-                        // Don't fail signup if patient creation fails
-                    }
-                }
-
-                // Redirect to home
-                router.push("/")
-                router.refresh()
-            }
+            await createAccount(email, password, name)
         } catch (err) {
             setError("An unexpected error occurred")
             console.error(err)
