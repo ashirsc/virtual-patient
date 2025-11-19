@@ -7,25 +7,33 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("NEON_POSTGRES_PRISMA_URL")
+  provider  = "postgresql"
+  url       = env("NEON_POSTGRES_PRISMA_URL")
   directUrl = env("NEON_DATABASE_URL_UNPOOLED")
+}
 
+enum UserRole {
+  student
+  instructor
+  admin
 }
 
 // Better Auth tables
 model User {
-  id            String    @id @default(cuid())
+  id            String   @id @default(cuid())
   name          String?
-  email         String    @unique
-  emailVerified Boolean   @default(false)
+  email         String   @unique
+  emailVerified Boolean  @default(false)
   image         String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  role          UserRole @default(student)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
-  sessions      Session[]
-  accounts      Account[]
-  patientActors PatientActor[]
+  sessions                      Session[]
+  accounts                      Account[]
+  patientActors                 PatientActor[]
+  chatSessions                  ChatSession[]
+  submittedSessionsAsInstructor SubmittedSession[] @relation("InstructorSubmissions")
 
   @@map("user")
 }
@@ -46,19 +54,19 @@ model Session {
 }
 
 model Account {
-  id                String   @id @default(cuid())
-  accountId         String
-  providerId        String
-  userId            String
-  accessToken       String?
-  refreshToken      String?
-  idToken           String?
-  accessTokenExpiresAt DateTime?
+  id                    String    @id @default(cuid())
+  accountId             String
+  providerId            String
+  userId                String
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
   refreshTokenExpiresAt DateTime?
-  scope             String?
-  password          String?
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -78,20 +86,64 @@ model Verification {
   @@map("verification")
 }
 
-
 model PatientActor {
-  id String @id @default(cuid())
-  name String
-  age Int
-  prompt String
-  slug String @unique
+  id       String  @id @default(cuid())
+  name     String
+  age      Int
+  prompt   String
+  slug     String  @unique
   isPublic Boolean @default(true)
 
   ownerId String
-  owner User @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  chatSessions ChatSession[]
+
   @@index([slug])
+}
+
+model ChatSession {
+  id String @id @default(cuid())
+
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  patientActorId String
+  patientActor   PatientActor @relation(fields: [patientActorId], references: [id], onDelete: Cascade)
+
+  messages     Json // Array of {role, content}
+  messageCount Int  @default(0)
+
+  startedAt     DateTime @default(now())
+  lastMessageAt DateTime @default(now())
+
+  submittedSession SubmittedSession?
+
+  @@index([userId])
+  @@index([patientActorId])
+  @@map("chat_session")
+}
+
+model SubmittedSession {
+  id String @id @default(cuid())
+
+  chatSessionId String      @unique
+  chatSession   ChatSession @relation(fields: [chatSessionId], references: [id], onDelete: Cascade)
+
+  instructorId String
+  instructor   User   @relation("InstructorSubmissions", fields: [instructorId], references: [id], onDelete: Cascade)
+
+  status   String  @default("pending") // pending, reviewed, graded
+  grade    String? // Optional grade
+  feedback String? // Instructor feedback
+
+  submittedAt DateTime  @default(now())
+  reviewedAt  DateTime?
+
+  @@index([instructorId])
+  @@index([status])
+  @@map("submitted_session")
 }

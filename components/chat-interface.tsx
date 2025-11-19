@@ -1,9 +1,23 @@
 "use client"
 
-import { useState } from "react"
-import { Loader2 } from "lucide-react"
-import { generateResponse, generatePublicResponse } from "@/lib/actions/chat"
+import { useState, useEffect } from "react"
+import { Loader2, Save, X, Send as SendIcon } from "lucide-react"
+import { generatePublicResponse } from "@/lib/actions/chat"
+import { createChatSession, updateChatSession, getInstructors, submitSessionToInstructor } from "@/lib/actions/sessions"
 import type { Message as MessageType } from "@/lib/types"
+import { useSession } from "@/lib/auth-client"
+import Link from "next/link"
+import { Button } from "@/components/ui/button"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 interface ChatInterfaceProps {
   patientId: string
@@ -14,6 +28,56 @@ interface ChatInterfaceProps {
 export default function ChatInterface({ patientId, patientName, isPublic = false }: ChatInterfaceProps) {
   const [messages, setMessages] = useState<MessageType[]>([])
   const [isLoading, setIsLoading] = useState(false)
+  const [sessionId, setSessionId] = useState<string | null>(null)
+  const [isSaving, setIsSaving] = useState(false)
+  const [showLoginPrompt, setShowLoginPrompt] = useState(false)
+  const [showSubmitDialog, setShowSubmitDialog] = useState(false)
+  const [instructors, setInstructors] = useState<Array<{ id: string; name: string | null; email: string }>>([])
+  const [selectedInstructor, setSelectedInstructor] = useState<string>("")
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  const { data: session, isPending } = useSession()
+  const isAuthenticated = !!session?.user
+
+  // Auto-create session for authenticated users
+  useEffect(() => {
+    if (isAuthenticated && !sessionId && messages.length > 0) {
+      createChatSession(patientId)
+        .then((id) => {
+          setSessionId(id)
+        })
+        .catch((error) => {
+          console.error("Failed to create session:", error)
+        })
+    }
+  }, [isAuthenticated, sessionId, patientId, messages.length])
+
+  // Auto-save messages for authenticated users (debounced)
+  useEffect(() => {
+    if (isAuthenticated && sessionId && messages.length > 0) {
+      const timer = setTimeout(() => {
+        setIsSaving(true)
+        updateChatSession(sessionId, messages)
+          .then(() => {
+            setIsSaving(false)
+          })
+          .catch((error) => {
+            console.error("Failed to save session:", error)
+            setIsSaving(false)
+          })
+      }, 1000) // Debounce for 1 second
+
+      return () => clearTimeout(timer)
+    }
+  }, [isAuthenticated, sessionId, messages])
+
+  // Show login prompt for guests after 3+ messages
+  useEffect(() => {
+    if (!isAuthenticated && !isPending && messages.length >= 6) {
+      // 6 messages = 3 exchanges
+      setShowLoginPrompt(true)
+    }
+  }, [isAuthenticated, isPending, messages.length])
 
   const handleSendMessage = async (input: string) => {
     if (!input.trim() || !patientId) return
@@ -29,10 +93,8 @@ export default function ChatInterface({ patientId, patientName, isPublic = false
     setIsLoading(true)
 
     try {
-      // Call appropriate server action based on mode
-      const response = isPublic
-        ? await generatePublicResponse(patientId, updatedMessages)
-        : await generateResponse(patientId, updatedMessages)
+      // Use public response (guests and authenticated users both allowed)
+      const response = await generatePublicResponse(patientId, updatedMessages)
 
       const assistantMessage: MessageType = {
         role: "assistant",
@@ -55,13 +117,83 @@ export default function ChatInterface({ patientId, patientName, isPublic = false
     }
   }
 
+  const handleOpenSubmitDialog = async () => {
+    try {
+      const instructorList = await getInstructors()
+      setInstructors(instructorList)
+      setShowSubmitDialog(true)
+    } catch (error) {
+      console.error("Failed to load instructors:", error)
+    }
+  }
+
+  const handleSubmit = async () => {
+    if (!sessionId || !selectedInstructor) return
+
+    setIsSubmitting(true)
+    try {
+      await submitSessionToInstructor(sessionId, selectedInstructor)
+      setShowSubmitDialog(false)
+      alert("Session submitted successfully!")
+    } catch (error) {
+      console.error("Failed to submit session:", error)
+      alert(error instanceof Error ? error.message : "Failed to submit session")
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
   return (
     <div className="flex flex-col h-full bg-white rounded-lg border">
       {/* Header */}
       <div className="p-4 border-b bg-gradient-to-r from-slate-50 to-white">
-        <h2 className="text-lg font-semibold">Chat with {patientName}</h2>
-        <p className="text-sm text-gray-600">Begin the medical interview</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-semibold">Chat with {patientName}</h2>
+            <p className="text-sm text-gray-600">Begin the medical interview</p>
+          </div>
+          <div className="flex items-center gap-2">
+            {isAuthenticated && isSaving && (
+              <div className="flex items-center gap-1 text-sm text-gray-500">
+                <Save className="h-4 w-4 animate-pulse" />
+                <span>Saving...</span>
+              </div>
+            )}
+            {isAuthenticated && !isSaving && sessionId && (
+              <div className="flex items-center gap-1 text-sm text-green-600">
+                <Save className="h-4 w-4" />
+                <span>Saved</span>
+              </div>
+            )}
+            {isAuthenticated && messages.length >= 10 && sessionId && (
+              <Button onClick={handleOpenSubmitDialog} size="sm" variant="outline">
+                Submit for Grading
+              </Button>
+            )}
+          </div>
+        </div>
       </div>
+
+      {/* Login Prompt for Guests */}
+      {showLoginPrompt && !isAuthenticated && (
+        <Alert className="m-4 border-blue-200 bg-blue-50">
+          <AlertDescription className="flex items-center justify-between">
+            <span className="text-sm">
+              <strong>Sign in</strong> to save your conversation and submit it for grading.
+            </span>
+            <div className="flex items-center gap-2">
+              <Link href="/login">
+                <Button size="sm" variant="default">
+                  Sign In
+                </Button>
+              </Link>
+              <Button size="sm" variant="ghost" onClick={() => setShowLoginPrompt(false)}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          </AlertDescription>
+        </Alert>
+      )}
 
       {/* Messages Area */}
       <div className="flex-1 overflow-auto p-4 space-y-4">
@@ -114,12 +246,47 @@ export default function ChatInterface({ patientId, patientName, isPublic = false
               }
             }}
             disabled={isLoading}
-            className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+            className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-1"
           >
+            <SendIcon className="h-4 w-4" />
             Send
           </button>
         </div>
       </div>
+
+      {/* Submit Dialog */}
+      <Dialog open={showSubmitDialog} onOpenChange={setShowSubmitDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Submit for Grading</DialogTitle>
+            <DialogDescription>
+              Select an instructor to submit your conversation transcript for grading.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Select value={selectedInstructor} onValueChange={setSelectedInstructor}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select an instructor" />
+              </SelectTrigger>
+              <SelectContent>
+                {instructors.map((instructor) => (
+                  <SelectItem key={instructor.id} value={instructor.id}>
+                    {instructor.name || instructor.email}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowSubmitDialog(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSubmit} disabled={!selectedInstructor || isSubmitting}>
+              {isSubmitting ? "Submitting..." : "Submit"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

@@ -15,13 +15,17 @@ function createSlug(name: string): string {
 async function main() {
     console.log('🔄 Migrating patient actors to add slugs...')
 
+    // Find patient actors with empty slugs or regenerate all
     const patientActors = await prisma.patientActor.findMany({
         where: {
-            slug: null
+            OR: [
+                { slug: '' },
+                { slug: { startsWith: 'temp-' } }
+            ]
         }
     })
 
-    console.log(`Found ${patientActors.length} patient actors without slugs`)
+    console.log(`Found ${patientActors.length} patient actors without proper slugs`)
 
     for (const actor of patientActors) {
         let slug = createSlug(actor.name)
