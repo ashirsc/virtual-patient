@@ -15,35 +15,33 @@ This document contains guidelines and patterns for AI agents working on this cod
 #### Example Implementation
 
 ```tsx
-const [isLoading, setIsLoading] = useState(false)
+const [isLoading, setIsLoading] = useState(false);
 
 const handleAsyncAction = async () => {
-    setIsLoading(true)
-    try {
-        await someAsyncOperation()
-        toast.success("Operation completed successfully!")
-    } catch (error) {
-        console.error("Error:", error)
-        toast.error(
-            error instanceof Error ? error.message : "Operation failed"
-        )
-    } finally {
-        setIsLoading(false)
-    }
-}
+  setIsLoading(true);
+  try {
+    await someAsyncOperation();
+    toast.success("Operation completed successfully!");
+  } catch (error) {
+    console.error("Error:", error);
+    toast.error(error instanceof Error ? error.message : "Operation failed");
+  } finally {
+    setIsLoading(false);
+  }
+};
 
 return (
-    <Button onClick={handleAsyncAction} disabled={isLoading}>
-        {isLoading ? (
-            <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Loading...
-            </>
-        ) : (
-            "Submit"
-        )}
-    </Button>
-)
+  <Button onClick={handleAsyncAction} disabled={isLoading}>
+    {isLoading ? (
+      <>
+        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+        Loading...
+      </>
+    ) : (
+      "Submit"
+    )}
+  </Button>
+);
 ```
 
 #### Key Requirements
@@ -91,3 +89,8 @@ return (
 - Use toast notifications for user feedback
 - Keep components small and focused
 
+## Documentation
+
+- **Explained documentation files** should be placed in the `/docs` folder
+- Use clear, descriptive filenames (e.g., `ANONYMOUS_SESSION_TESTING.md`)
+- Follow markdown best practices for readability
