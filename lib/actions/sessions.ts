@@ -427,3 +427,169 @@ export async function getInstructors() {
     }
 }
 
+/**
+ * Create an anonymous chat session (no authentication required)
+ * Used when guests start chatting before logging in
+ */
+export async function createAnonymousChatSession(patientActorId: string): Promise<string> {
+    try {
+        const session = await prisma.chatSession.create({
+            data: {
+                userId: null,
+                patientActorId,
+                messages: [],
+                messageCount: 0,
+            },
+        })
+
+        return session.id
+    } catch (error) {
+        console.error("Error creating anonymous chat session:", error)
+        throw new Error(
+            error instanceof Error ? error.message : "Failed to create anonymous chat session"
+        )
+    }
+}
+
+/**
+ * Update an anonymous chat session with new messages (no authentication required)
+ * Only works on unclaimed sessions (userId = null)
+ */
+export async function updateAnonymousChatSession(
+    sessionId: string,
+    messages: Message[]
+): Promise<void> {
+    try {
+        // Verify the session exists and is unclaimed
+        const session = await prisma.chatSession.findUnique({
+            where: { id: sessionId },
+        })
+
+        if (!session) {
+            throw new Error("Session not found")
+        }
+
+        if (session.userId !== null) {
+            throw new Error("Cannot update claimed session anonymously")
+        }
+
+        await prisma.chatSession.update({
+            where: { id: sessionId },
+            data: {
+                messages: messages as any,
+                messageCount: messages.length,
+                lastMessageAt: new Date(),
+            },
+        })
+    } catch (error) {
+        console.error("Error updating anonymous chat session:", error)
+        throw new Error(
+            error instanceof Error ? error.message : "Failed to update anonymous chat session"
+        )
+    }
+}
+
+/**
+ * Claim an anonymous chat session (requires authentication)
+ * Assigns the session to the authenticated user
+ */
+export async function claimChatSession(sessionId: string): Promise<void> {
+    try {
+        const user = await requireAuth()
+
+        // Verify the session exists and is unclaimed
+        const session = await prisma.chatSession.findUnique({
+            where: { id: sessionId },
+        })
+
+        if (!session) {
+            throw new Error("Session not found")
+        }
+
+        if (session.userId !== null) {
+            // Session already claimed
+            if (session.userId === user.id) {
+                // Already claimed by this user, silently succeed
+                return
+            }
+            throw new Error("Session has already been claimed by another user")
+        }
+
+        // Claim the session
+        await prisma.chatSession.update({
+            where: { id: sessionId },
+            data: {
+                userId: user.id,
+            },
+        })
+    } catch (error) {
+        console.error("Error claiming chat session:", error)
+        throw new Error(
+            error instanceof Error ? error.message : "Failed to claim chat session"
+        )
+    }
+}
+
+/**
+ * Get an unclaimed session by ID (no authentication required)
+ * Used to verify a session is claimable before login
+ */
+export async function getUnclaimedSessionById(sessionId: string) {
+    try {
+        const session = await prisma.chatSession.findUnique({
+            where: { id: sessionId },
+            include: {
+                patientActor: {
+                    select: {
+                        id: true,
+                        name: true,
+                        age: true,
+                    },
+                },
+            },
+        })
+
+        if (!session) {
+            return null
+        }
+
+        // Only return if unclaimed
+        if (session.userId !== null) {
+            return null
+        }
+
+        return session
+    } catch (error) {
+        console.error("Error fetching unclaimed session:", error)
+        return null
+    }
+}
+
+/**
+ * Cleanup abandoned anonymous sessions (older than 7 days)
+ * Should be called periodically via cron job
+ */
+export async function cleanupAbandonedSessions(): Promise<number> {
+    try {
+        const sevenDaysAgo = new Date()
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
+
+        const result = await prisma.chatSession.deleteMany({
+            where: {
+                userId: null,
+                lastMessageAt: {
+                    lt: sevenDaysAgo,
+                },
+            },
+        })
+
+        console.log(`Cleaned up ${result.count} abandoned anonymous sessions`)
+        return result.count
+    } catch (error) {
+        console.error("Error cleaning up abandoned sessions:", error)
+        throw new Error(
+            error instanceof Error ? error.message : "Failed to cleanup abandoned sessions"
+        )
+    }
+}
+

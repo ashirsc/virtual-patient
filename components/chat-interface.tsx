@@ -3,7 +3,15 @@
 import { useState, useEffect } from "react"
 import { Loader2, Save, X, Send as SendIcon } from "lucide-react"
 import { generatePublicResponse } from "@/lib/actions/chat"
-import { createChatSession, updateChatSession, getInstructors, submitSessionToInstructor } from "@/lib/actions/sessions"
+import { 
+  createChatSession, 
+  updateChatSession, 
+  getInstructors, 
+  submitSessionToInstructor,
+  createAnonymousChatSession,
+  updateAnonymousChatSession,
+  claimChatSession
+} from "@/lib/actions/sessions"
 import type { Message as MessageType } from "@/lib/types"
 import { useSession } from "@/lib/auth-client"
 import Link from "next/link"
@@ -18,6 +26,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { toast } from "sonner"
 
 interface ChatInterfaceProps {
   patientId: string
@@ -40,26 +49,79 @@ export default function ChatInterface({ patientId, patientName, patientAge, isPu
 
   const { data: session, isPending } = useSession()
   const isAuthenticated = !!session?.user
+  const previousAuthState = useState<boolean | null>(null)[0]
+  const [, setPreviousAuthState] = useState<boolean | null>(null)
 
-  // Auto-create session for authenticated users
+  // Load session ID from localStorage on mount
   useEffect(() => {
-    if (isAuthenticated && !sessionId && messages.length > 0) {
-      createChatSession(patientId)
-        .then((id) => {
-          setSessionId(id)
-        })
-        .catch((error) => {
-          console.error("Failed to create session:", error)
-        })
+    const storedSessionId = localStorage.getItem(`chat-session-${patientId}`)
+    if (storedSessionId) {
+      setSessionId(storedSessionId)
     }
-  }, [isAuthenticated, sessionId, patientId, messages.length])
+  }, [patientId])
 
-  // Auto-save messages for authenticated users (debounced)
+  // Claim anonymous session when user logs in
   useEffect(() => {
-    if (isAuthenticated && sessionId && messages.length > 0) {
+    const handleSessionClaim = async () => {
+      // Detect login transition (from not authenticated to authenticated)
+      if (previousAuthState === false && isAuthenticated && sessionId) {
+        try {
+          await claimChatSession(sessionId)
+          toast.success("Your conversation has been saved to your account!")
+          // Keep the session ID in localStorage for now (will be cleared on navigation)
+        } catch (error) {
+          console.error("Failed to claim session:", error)
+          // If claiming fails, create a new authenticated session
+          try {
+            const newSessionId = await createChatSession(patientId)
+            setSessionId(newSessionId)
+            localStorage.setItem(`chat-session-${patientId}`, newSessionId)
+            toast.info("Started a new session with your messages")
+          } catch (createError) {
+            console.error("Failed to create new session:", createError)
+          }
+        }
+      }
+    }
+
+    handleSessionClaim()
+    setPreviousAuthState(isAuthenticated)
+  }, [isAuthenticated, previousAuthState, sessionId, patientId])
+
+  // Auto-create session on first message
+  useEffect(() => {
+    const createSession = async () => {
+      if (!sessionId && messages.length > 0) {
+        try {
+          let newSessionId: string
+          if (isAuthenticated) {
+            // Create authenticated session
+            newSessionId = await createChatSession(patientId)
+          } else {
+            // Create anonymous session
+            newSessionId = await createAnonymousChatSession(patientId)
+          }
+          setSessionId(newSessionId)
+          localStorage.setItem(`chat-session-${patientId}`, newSessionId)
+        } catch (error) {
+          console.error("Failed to create session:", error)
+        }
+      }
+    }
+
+    createSession()
+  }, [sessionId, messages.length, patientId, isAuthenticated])
+
+  // Auto-save messages (debounced) - works for both authenticated and anonymous users
+  useEffect(() => {
+    if (sessionId && messages.length > 0) {
       const timer = setTimeout(() => {
         setIsSaving(true)
-        updateChatSession(sessionId, messages)
+        const savePromise = isAuthenticated
+          ? updateChatSession(sessionId, messages)
+          : updateAnonymousChatSession(sessionId, messages)
+
+        savePromise
           .then(() => {
             setIsSaving(false)
           })
@@ -155,13 +217,13 @@ export default function ChatInterface({ patientId, patientName, patientAge, isPu
             <p className="text-sm text-gray-600">Begin the medical interview</p>
           </div>
           <div className="flex items-center gap-2">
-            {isAuthenticated && isSaving && (
+            {isSaving && sessionId && (
               <div className="flex items-center gap-1 text-sm text-gray-500">
                 <Save className="h-4 w-4 animate-pulse" />
                 <span>Saving...</span>
               </div>
             )}
-            {isAuthenticated && !isSaving && sessionId && (
+            {!isSaving && sessionId && (
               <div className="flex items-center gap-1 text-sm text-green-600">
                 <Save className="h-4 w-4" />
                 <span>Saved</span>

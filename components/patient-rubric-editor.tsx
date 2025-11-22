@@ -29,6 +29,7 @@ import {
 } from "@/lib/actions/rubrics"
 import {
     STANDARD_OSCE_RUBRIC,
+    FPCC_COMPLETE_HISTORY_RUBRIC,
     type RubricCategory,
 } from "@/lib/types/rubric"
 
@@ -94,9 +95,14 @@ const PatientRubricEditor = forwardRef<PatientRubricEditorRef, PatientRubricEdit
         }
     }
 
-    const handleLoadTemplate = () => {
-        setCategories(STANDARD_OSCE_RUBRIC)
-        toast.success("Loaded standard OSCE template")
+    const handleLoadTemplate = (templateType: 'osce' | 'fpcc') => {
+        if (templateType === 'osce') {
+            setCategories(STANDARD_OSCE_RUBRIC)
+            toast.success("Loaded standard OSCE template")
+        } else {
+            setCategories(FPCC_COMPLETE_HISTORY_RUBRIC)
+            toast.success("Loaded FPCC Complete History template")
+        }
     }
 
     const handleAddCategory = () => {
@@ -201,9 +207,23 @@ const PatientRubricEditor = forwardRef<PatientRubricEditorRef, PatientRubricEdit
                                 </CardDescription>
                             </CardHeader>
                             <CardContent className="space-y-4">
-                                <Button onClick={handleLoadTemplate} className="w-full">
-                                    Load Standard OSCE Template (5 categories, 50 points)
-                                </Button>
+                                <div className="space-y-3">
+                                    <p className="text-sm font-medium text-gray-700">Choose a template:</p>
+                                    <Button onClick={() => handleLoadTemplate('osce')} className="w-full">
+                                        Load Standard OSCE Template (5 categories, 50 points)
+                                    </Button>
+                                    <Button onClick={() => handleLoadTemplate('fpcc')} className="w-full">
+                                        Load FPCC Complete History Template (10 categories, 88 points)
+                                    </Button>
+                                </div>
+                                <div className="relative">
+                                    <div className="absolute inset-0 flex items-center">
+                                        <span className="w-full border-t" />
+                                    </div>
+                                    <div className="relative flex justify-center text-xs uppercase">
+                                        <span className="bg-white px-2 text-muted-foreground">Or</span>
+                                    </div>
+                                </div>
                                 <Button onClick={handleAddCategory} variant="outline" className="w-full">
                                     <Plus className="h-4 w-4 mr-2" />
                                     Start with Custom Rubric
