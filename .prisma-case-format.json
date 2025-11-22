@@ -1,0 +1,9 @@
+{
+  "tableCase": "pascal",
+  "fieldCase": "camel",
+  "mapTableCase": "snake",
+  "mapFieldCase": "snake",
+  "pluralize": false
+}
+
+

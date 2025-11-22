@@ -2,20 +2,20 @@
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
 generator client {
-  provider = "prisma-client-js"
+  provider = "prisma-client"
   output   = "../lib/generated/client"
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("NEON_POSTGRES_PRISMA_URL")
-  directUrl = env("NEON_DATABASE_URL_UNPOOLED")
+  provider = "postgresql"
 }
 
 enum UserRole {
   student
   instructor
   admin
+
+  @@map("user_role")
 }
 
 // Better Auth tables
@@ -23,11 +23,11 @@ model User {
   id            String   @id @default(cuid())
   name          String?
   email         String   @unique
-  emailVerified Boolean  @default(false)
+  emailVerified Boolean  @default(false) @map("email_verified")
   image         String?
   role          UserRole @default(student)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
 
   sessions                      Session[]
   accounts                      Account[]
@@ -40,13 +40,13 @@ model User {
 
 model Session {
   id        String   @id @default(cuid())
-  expiresAt DateTime
+  expiresAt DateTime @map("expires_at")
   token     String   @unique
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  ipAddress String?
-  userAgent String?
-  userId    String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  ipAddress String?  @map("ip_address")
+  userAgent String?  @map("user_agent")
+  userId    String   @map("user_id")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -55,18 +55,18 @@ model Session {
 
 model Account {
   id                    String    @id @default(cuid())
-  accountId             String
-  providerId            String
-  userId                String
-  accessToken           String?
-  refreshToken          String?
-  idToken               String?
-  accessTokenExpiresAt  DateTime?
-  refreshTokenExpiresAt DateTime?
+  accountId             String    @map("account_id")
+  providerId            String    @map("provider_id")
+  userId                String    @map("user_id")
+  accessToken           String?   @map("access_token")
+  refreshToken          String?   @map("refresh_token")
+  idToken               String?   @map("id_token")
+  accessTokenExpiresAt  DateTime? @map("access_token_expires_at")
+  refreshTokenExpiresAt DateTime? @map("refresh_token_expires_at")
   scope                 String?
   password              String?
-  createdAt             DateTime  @default(now())
-  updatedAt             DateTime  @updatedAt
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -78,45 +78,45 @@ model Verification {
   id         String   @id @default(cuid())
   identifier String
   value      String
-  expiresAt  DateTime
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  expiresAt  DateTime @map("expires_at")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
 
   @@unique([identifier, value])
   @@map("verification")
 }
 
 model PatientActor {
-  id       String  @id @default(cuid())
-  name     String
-  age      Int
-  slug     String  @unique
-  isPublic Boolean @default(true)
-  allowSubmissions Boolean @default(true)
+  id               String  @id @default(cuid())
+  name             String
+  age              Int
+  slug             String  @unique
+  isPublic         Boolean @default(true) @map("is_public")
+  allowSubmissions Boolean @default(true) @map("allow_submissions")
 
   // Structured prompt fields
-  demographics        String @default("")
-  chiefComplaint      String @default("")
-  medicalHistory      String @default("")
-  medications         String @default("")
-  socialHistory       String @default("")
-  personality         String @default("")
-  physicalFindings    String @default("")
-  additionalSymptoms  String @default("")
-  revelationLevel     String @default("moderate") // forthcoming, moderate, reserved
-  stayInCharacter     Boolean @default(true)
-  avoidMedicalJargon  Boolean @default(true)
-  provideFeedback     Boolean @default(true)
-  customInstructions  String @default("")
+  demographics       String  @default("")
+  chiefComplaint     String  @default("") @map("chief_complaint")
+  medicalHistory     String  @default("") @map("medical_history")
+  medications        String  @default("")
+  socialHistory      String  @default("") @map("social_history")
+  personality        String  @default("")
+  physicalFindings   String  @default("") @map("physical_findings")
+  additionalSymptoms String  @default("") @map("additional_symptoms")
+  revelationLevel    String  @default("moderate") @map("revelation_level") // forthcoming, moderate, reserved
+  stayInCharacter    Boolean @default(true) @map("stay_in_character")
+  avoidMedicalJargon Boolean @default(true) @map("avoid_medical_jargon")
+  provideFeedback    Boolean @default(true) @map("provide_feedback")
+  customInstructions String  @default("") @map("custom_instructions")
 
   // Legacy field - kept for backward compatibility during migration
   prompt String?
 
-  ownerId String
+  ownerId String @map("owner_id")
   owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   chatSessions  ChatSession[]
   gradingRubric GradingRubric?
@@ -128,10 +128,10 @@ model PatientActor {
 model ChatSession {
   id String @id @default(cuid())
 
-  userId String?
+  userId String? @map("user_id")
   user   User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  patientActorId String
+  patientActorId String       @map("patient_actor_id")
   patientActor   PatientActor @relation(fields: [patientActorId], references: [id], onDelete: Cascade)
 
   messages     Json // Array of {role, content}
@@ -150,10 +150,10 @@ model ChatSession {
 model SubmittedSession {
   id String @id @default(cuid())
 
-  chatSessionId String      @unique
+  chatSessionId String      @unique @map("chat_session_id")
   chatSession   ChatSession @relation(fields: [chatSessionId], references: [id], onDelete: Cascade)
 
-  instructorId String
+  instructorId String @map("instructor_id")
   instructor   User   @relation("InstructorSubmissions", fields: [instructorId], references: [id], onDelete: Cascade)
 
   status   String  @default("pending") // pending, reviewed, graded
@@ -161,14 +161,14 @@ model SubmittedSession {
   feedback String? // Instructor feedback
 
   // AI Grading fields
-  rubricScores   Json? // Category scores from each LLM
-  aiGrades       Json? // Full AI grading results with reasoning from each model
-  requiresReview Boolean   @default(false) // Flagged if LLMs disagree
-  autoGraded     Boolean   @default(false) // Whether AI grading was used
-  aiGradedAt     DateTime? // When AI grading was performed
+  rubricScores   Json?     @map("rubric_scores") // Category scores from each LLM
+  aiGrades       Json?     @map("ai_grades") // Full AI grading results with reasoning from each model
+  requiresReview Boolean   @default(false) @map("requires_review") // Flagged if LLMs disagree
+  autoGraded     Boolean   @default(false) @map("auto_graded") // Whether AI grading was used
+  aiGradedAt     DateTime? @map("ai_graded_at") // When AI grading was performed
 
-  submittedAt DateTime  @default(now())
-  reviewedAt  DateTime?
+  submittedAt DateTime  @default(now()) @map("submitted_at")
+  reviewedAt  DateTime? @map("reviewed_at")
 
   @@index([instructorId])
   @@index([status])
@@ -179,7 +179,7 @@ model SubmittedSession {
 model GradingRubric {
   id String @id @default(cuid())
 
-  patientActorId String       @unique
+  patientActorId String       @unique @map("patient_actor_id")
   patientActor   PatientActor @relation(fields: [patientActorId], references: [id], onDelete: Cascade)
 
   categories       Json // Array of {name, description, maxPoints, criteria}
