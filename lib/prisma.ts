@@ -3,13 +3,6 @@ import { PrismaPg } from '@prisma/adapter-pg'
 import { Pool } from 'pg'
 
 const prismaClientSingleton = () => {
-
-    // to use sqlite
-    // import { PrismaBetterSQLite3 } from '@prisma/adapter-better-sqlite3';
-
-    // const adapter = new PrismaBetterSQLite3({
-    //     url: process.env.DATABASE_URL || 'file:./dev.db'
-    // })
     const connectionString = process.env.POSTGRES_URL
     if (!connectionString) {
         throw new Error('POSTGRES_URL environment variable is not set')

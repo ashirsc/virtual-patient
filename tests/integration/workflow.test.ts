@@ -102,4 +102,3 @@ describe('Full Workflow Integration', () => {
     expect(result?.chatSession.patientActor.gradingRubric?.totalPoints).toBe(20)
   })
 })
-

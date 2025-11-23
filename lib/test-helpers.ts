@@ -15,5 +15,3 @@ export async function cleanupTestDatabase() {
   await prisma.session.deleteMany()
   await prisma.user.deleteMany()
 }
-
-

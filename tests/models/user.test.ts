@@ -3,6 +3,7 @@ import prisma from '@/lib/prisma'
 import { cleanupTestDatabase } from '@/lib/test-helpers'
 
 describe('User Model', () => {
+
   beforeEach(async () => {
     await cleanupTestDatabase()
   })
