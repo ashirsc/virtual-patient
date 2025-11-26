@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { getSubmissionsByPatientActor } from "@/lib/actions/sessions"
-import type { PatientActor } from "@/lib/generated/client"
+import type { PatientActor } from "@prisma/client"
 
 interface PatientWorkspaceProps {
     patient: PatientActor
@@ -70,6 +70,13 @@ export default function PatientWorkspace({
     const copyShareableUrl = async () => {
         const url = getShareableUrl()
         if (!url) return
+
+        // Check if clipboard API is available
+        if (typeof navigator === 'undefined' || !navigator.clipboard) {
+            console.error('Clipboard API not available')
+            return
+        }
+
         try {
             await navigator.clipboard.writeText(url)
             setCopiedUrl(true)

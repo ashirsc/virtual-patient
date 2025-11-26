@@ -9,8 +9,8 @@ import { Button } from "@/components/ui/button"
 import { signOut } from "@/lib/auth-client"
 import { createPatientActor } from "@/lib/actions/patient-actors"
 import { toast } from "sonner"
-import type { PatientActor } from "@/lib/generated/client"
 import Link from "next/link"
+import { PatientActor } from "@prisma/client"
 
 interface PatientActorsClientProps {
   patientActors: PatientActor[]
@@ -19,23 +19,23 @@ interface PatientActorsClientProps {
   submissions: any[]
 }
 
-export default function PatientActorsClient({ 
-  patientActors, 
-  userName, 
-  userRole, 
-  submissions 
+export default function PatientActorsClient({
+  patientActors,
+  userName,
+  userRole,
+  submissions
 }: PatientActorsClientProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
-  
+
   const [patients, setPatients] = useState<PatientActor[]>(patientActors)
   const [isCreating, setIsCreating] = useState(false)
   const [isSigningOut, setIsSigningOut] = useState(false)
 
   // Find selected patient from URL or default to first
   const selectedId = searchParams.get('id')
-  const initialPatient = selectedId 
-    ? patients.find(p => p.id === selectedId) || patients[0] 
+  const initialPatient = selectedId
+    ? patients.find(p => p.id === selectedId) || patients[0]
     : patients[0]
   const [selectedPatient, setSelectedPatient] = useState<PatientActor | null>(initialPatient || null)
 
@@ -89,7 +89,7 @@ export default function PatientActorsClient({
       setPatients(prev => [newPatient, ...prev])
       setSelectedPatient(newPatient)
       toast.success("Patient actor created!")
-      
+
       // Clear the create param from URL
       router.replace('/patient-actors')
     } catch (error) {
@@ -128,9 +128,9 @@ export default function PatientActorsClient({
             <span className="text-sm text-gray-600">
               {userName && `Welcome, ${userName}`}
             </span>
-            <Button 
-              variant="outline" 
-              size="sm" 
+            <Button
+              variant="outline"
+              size="sm"
               onClick={handleSignOut}
               disabled={isSigningOut}
             >
@@ -247,6 +247,7 @@ export default function PatientActorsClient({
     </div>
   )
 }
+
 
 
 

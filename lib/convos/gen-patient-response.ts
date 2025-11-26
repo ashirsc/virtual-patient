@@ -1,17 +1,11 @@
-import { google } from "@ai-sdk/google"
-import { generateText } from "ai"
-import type { Message } from "./types"
-import { generatePrompt } from "./prompt-utils"
+
+import type { Message } from "../types"
+import { generateVPSystemPrompt } from "./prompt-utils"
 import type { StructuredPrompt } from "./prompt-utils"
+import { MODELS } from "../llm/models"
+import { generateText } from "../llm/ai-traced"
 
-// Initialize Google AI with API key from environment
-const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY
 
-if (!apiKey) {
-    console.error(
-        "❌ Google Generative AI API key is missing. Please set GOOGLE_GENERATIVE_AI_API_KEY in your .env.local file."
-    )
-}
 
 export interface PatientActor {
     name: string
@@ -36,11 +30,7 @@ export async function generatePatientResponse(
     patient: PatientActor,
     messages: Message[]
 ): Promise<string> {
-    if (!apiKey) {
-        throw new Error(
-            "Google Generative AI API key is not configured. Please add GOOGLE_GENERATIVE_AI_API_KEY to your .env.local file."
-        )
-    }
+
 
     // Build system prompt from structured fields
     const structuredData: StructuredPrompt = {
@@ -60,7 +50,7 @@ export async function generatePatientResponse(
     }
 
     // Generate the system prompt dynamically
-    const systemPrompt = patient.prompt || generatePrompt(structuredData)
+    const systemPrompt = generateVPSystemPrompt(structuredData)
 
     const conversationHistory = messages.map((msg) => ({
         role: msg.role as "user" | "assistant",
@@ -68,7 +58,7 @@ export async function generatePatientResponse(
     }))
 
     const result = await generateText({
-        model: google("gemini-2.0-flash"),
+        model: MODELS["gemini-2.5-flash"],
         system: systemPrompt,
         messages: conversationHistory,
     })

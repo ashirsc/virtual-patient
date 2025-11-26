@@ -1,6 +1,6 @@
 "use server"
 
-import { generatePatientResponse } from "@/lib/gemini"
+import { generatePatientResponse } from "@/lib/convos/gen-patient-response"
 import type { Message } from "@/lib/types"
 import { requireAuth } from "@/lib/auth-utils"
 import prisma from "@/lib/prisma"

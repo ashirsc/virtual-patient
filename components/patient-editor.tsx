@@ -33,9 +33,9 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog"
 import { updatePatientActor, deletePatientActor } from "@/lib/actions/patient-actors"
-import type { PatientActor } from "@/lib/generated/client"
 import { toast } from "sonner"
-import { parsePrompt, generatePrompt, type StructuredPrompt } from "@/lib/prompt-utils"
+import { generateVPSystemPrompt, type StructuredPrompt } from "@/lib/convos/prompt-utils"
+import { PatientActor } from "@prisma/client"
 
 interface PatientEditorProps {
     patient: PatientActor
@@ -112,50 +112,11 @@ const PatientEditor = forwardRef<PatientEditorRef, PatientEditorProps>(({ patien
         })
     }, [patient])
 
-    const getShareableUrl = () => {
-        if (typeof window === 'undefined') {
-            console.warn('Cannot create URL: window is undefined (SSR)')
-            return ""
-        }
 
-        if (!patient.slug) {
-            console.warn('Cannot create URL: patient.slug is missing', {
-                patientId: patient.id,
-                patientName: patient.name,
-                slug: patient.slug,
-                hasSlugField: 'slug' in patient
-            })
-            return ""
-        }
 
-        const url = `${window.location.origin}/chat/${patient.slug}`
-        console.log('Shareable URL generated:', url, { slug: patient.slug })
-        return url
-    }
 
-    const copyShareableUrl = async () => {
-        const url = getShareableUrl()
-        if (!url) {
-            console.error('No URL available to copy')
-            return
-        }
-        try {
-            await navigator.clipboard.writeText(url)
-            setCopiedUrl(true)
-            setTimeout(() => setCopiedUrl(false), 2000)
-        } catch (err) {
-            console.error('Failed to copy:', err)
-        }
-    }
 
-    const openInNewTab = () => {
-        const url = getShareableUrl()
-        if (!url) {
-            console.error('No URL available to open')
-            return
-        }
-        window.open(url, '_blank')
-    }
+
 
     const handleSave = async () => {
         setIsSaving(true)
@@ -479,7 +440,7 @@ const PatientEditor = forwardRef<PatientEditorRef, PatientEditorProps>(({ patien
                         </DialogDescription>
                     </DialogHeader>
                     <div className="mt-4 p-4 bg-gray-50 rounded-lg border">
-                        <pre className="whitespace-pre-wrap text-sm">{generatePrompt(structuredData)}</pre>
+                        <pre className="whitespace-pre-wrap text-sm">{generateVPSystemPrompt(structuredData)}</pre>
                     </div>
                 </DialogContent>
             </Dialog>

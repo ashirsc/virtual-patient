@@ -42,7 +42,7 @@ export const DEFAULT_STRUCTURED_PROMPT: StructuredPrompt = {
 /**
  * Generate a complete prompt from structured data
  */
-export function generatePrompt(data: StructuredPrompt): string {
+export function generateVPSystemPrompt(data: StructuredPrompt): string {
     const sections: string[] = []
 
     // Patient Profile Section
@@ -143,50 +143,4 @@ export function generatePrompt(data: StructuredPrompt): string {
     return sections.join('\n\n')
 }
 
-/**
- * Parse an existing prompt back into structured data
- * This is a best-effort parser that looks for common patterns
- */
-export function parsePrompt(prompt: string): StructuredPrompt {
-    const result = { ...DEFAULT_STRUCTURED_PROMPT }
 
-    // Helper to extract content after a label
-    const extractAfterLabel = (label: string): string => {
-        const regex = new RegExp(`\\*\\*${label}:\\*\\*\\s*([\\s\\S]+?)(?=\\n\\*\\*|\\n\\n|$)`, 'i')
-        const match = prompt.match(regex)
-        return match ? match[1].trim().replace(/^["']|["']$/g, '') : ''
-    }
-
-    // Extract each field
-    result.demographics = extractAfterLabel('Demographics')
-    result.chiefComplaint = extractAfterLabel('Chief Complaint')
-    result.medicalHistory = extractAfterLabel('Medical History')
-    result.medications = extractAfterLabel('Current Medications') || extractAfterLabel('Medications')
-    result.socialHistory = extractAfterLabel('Social History')
-    result.personality = extractAfterLabel('Personality')
-    result.physicalFindings = extractAfterLabel('Physical/Neurological Findings') || extractAfterLabel('Neurological Findings')
-    result.additionalSymptoms = extractAfterLabel('Additional Symptoms') || extractAfterLabel('Non-Motor Symptoms')
-
-    // Detect revelation level from text patterns
-    const lowerPrompt = prompt.toLowerCase()
-    if (lowerPrompt.includes('brief') && lowerPrompt.includes('minimal') || lowerPrompt.includes('only reveal information when directly asked')) {
-        result.revelationLevel = 'reserved'
-    } else if (lowerPrompt.includes('detailed information readily') || lowerPrompt.includes('open and communicative')) {
-        result.revelationLevel = 'forthcoming'
-    } else {
-        result.revelationLevel = 'moderate'
-    }
-
-    // Detect behavior settings
-    result.stayInCharacter = lowerPrompt.includes('stay in character') || lowerPrompt.includes('maintain character')
-    result.avoidMedicalJargon = lowerPrompt.includes('avoid') && lowerPrompt.includes('jargon')
-    result.provideFeedback = lowerPrompt.includes('feedback') || lowerPrompt.includes('rating')
-
-    // Extract custom instructions (everything after "Additional Instructions")
-    const customMatch = prompt.match(/\*\*Additional Instructions:\*\*\s*\n([\s\S]+)$/i)
-    if (customMatch) {
-        result.customInstructions = customMatch[1].trim()
-    }
-
-    return result
-}
