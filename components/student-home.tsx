@@ -3,11 +3,11 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { 
-  MessageSquare, 
-  Clock, 
-  CheckCircle, 
-  AlertCircle, 
+import {
+  MessageSquare,
+  Clock,
+  CheckCircle,
+  AlertCircle,
   ChevronRight,
   Plus,
   User,
@@ -119,9 +119,9 @@ export default function StudentHome({ sessions, userName }: StudentHomeProps) {
                 {userName ? `Welcome back, ${userName}` : 'Your conversation history'}
               </p>
             </div>
-            <Button 
-              variant="outline" 
-              size="sm" 
+            <Button
+              variant="outline"
+              size="sm"
               onClick={handleSignOut}
               disabled={isSigningOut}
             >
@@ -188,7 +188,7 @@ export default function StudentHome({ sessions, userName }: StudentHomeProps) {
               </div>
               <h3 className="text-lg font-semibold text-gray-900 mb-2">No conversations yet</h3>
               <p className="text-sm text-gray-600 text-center max-w-md mb-4">
-                Get started by visiting a patient actor link shared by your instructor. 
+                Get started by visiting a patient actor link shared by your instructor.
                 Your conversations will appear here automatically.
               </p>
             </CardContent>
@@ -301,5 +301,8 @@ export default function StudentHome({ sessions, userName }: StudentHomeProps) {
     </div>
   )
 }
+
+
+
 
 

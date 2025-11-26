@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { Eye, EyeOff } from "lucide-react"
@@ -12,7 +12,7 @@ import { createAccount } from "@/lib/actions/accounts"
 import { claimChatSession } from "@/lib/actions/sessions"
 import { toast } from "sonner"
 
-export default function SignUpPage() {
+function SignUpForm() {
     const searchParams = useSearchParams()
     const [name, setName] = useState("")
     const [email, setEmail] = useState("")
@@ -196,6 +196,50 @@ export default function SignUpPage() {
                 </CardContent>
             </Card>
         </div>
+    )
+}
+
+function SignUpLoadingSkeleton() {
+    return (
+        <div className="flex min-h-screen items-center justify-center p-4">
+            <Card className="w-full max-w-md">
+                <CardHeader>
+                    <CardTitle>Create Account</CardTitle>
+                    <CardDescription>
+                        Sign up to create and manage your patient actors
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div className="space-y-4">
+                        <div className="space-y-2">
+                            <Label>Name</Label>
+                            <div className="h-10 bg-gray-100 rounded-md animate-pulse" />
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Email</Label>
+                            <div className="h-10 bg-gray-100 rounded-md animate-pulse" />
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Password</Label>
+                            <div className="h-10 bg-gray-100 rounded-md animate-pulse" />
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Confirm Password</Label>
+                            <div className="h-10 bg-gray-100 rounded-md animate-pulse" />
+                        </div>
+                        <div className="h-10 bg-gray-200 rounded-md animate-pulse" />
+                    </div>
+                </CardContent>
+            </Card>
+        </div>
+    )
+}
+
+export default function SignUpPage() {
+    return (
+        <Suspense fallback={<SignUpLoadingSkeleton />}>
+            <SignUpForm />
+        </Suspense>
     )
 }
 

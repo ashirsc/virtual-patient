@@ -19,7 +19,7 @@ export default async function Home() {
   if (userRole === "student") {
     // Student view: show their conversation history
     const sessions = await getStudentSessions()
-    
+
     return (
       <StudentHome
         sessions={sessions}
@@ -30,7 +30,7 @@ export default async function Home() {
 
   // Instructor/Admin view: show dashboard
   const patientActors = await getMyPatientActors()
-  
+
   let submissions: any[] = []
   try {
     submissions = await getSubmittedSessions()
