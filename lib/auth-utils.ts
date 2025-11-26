@@ -28,6 +28,15 @@ export async function requireAuth() {
   return session.user;
 }
 
+export async function requireInstructorAuth() {
+  const user = await requireAuth();
+  //TODO: Add instructor and admin check
+  // if (user.role !== "instructor" && user.role !== "admin") {
+  //   throw new Error("Unauthorized");
+  // }
+  return user;
+}
+
 /**
  * Require authentication in Server Components
  * Redirects to /login if not authenticated

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { cleanupAbandonedSessions } from "@/lib/actions/sessions"
+import { cleanupAbandonedEncounter } from "@/lib/actions/sessions"
 
 /**
  * API endpoint to cleanup abandoned anonymous sessions
@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Run cleanup
-        const deletedCount = await cleanupAbandonedSessions()
+        const deletedCount = await cleanupAbandonedEncounter()
 
         return NextResponse.json({
             success: true,

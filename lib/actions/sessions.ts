@@ -1,7 +1,7 @@
 "use server"
 
 import prisma from "@/lib/prisma"
-import { requireAuth } from "@/lib/auth-utils"
+import { requireAuth, requireInstructorAuth } from "@/lib/auth-utils"
 import type { Message } from "@/lib/types"
 import { revalidatePath } from "next/cache"
 
@@ -114,7 +114,7 @@ export async function getStudentSessions() {
  */
 export async function getChatSession(sessionId: string) {
     try {
-        const user = await requireAuth()
+        const user = await requireInstructorAuth()
 
         const session = await prisma.chatSession.findUnique({
             where: { id: sessionId },
@@ -614,7 +614,7 @@ export async function getUnclaimedSessionById(sessionId: string) {
  * Cleanup abandoned anonymous sessions (older than 7 days)
  * Should be called periodically via cron job
  */
-export async function cleanupAbandonedSessions(): Promise<number> {
+export async function cleanupAbandonedEncounter(): Promise<number> {
     try {
         const sevenDaysAgo = new Date()
         sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
