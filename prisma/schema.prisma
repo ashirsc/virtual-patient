@@ -20,7 +20,7 @@ enum UserRole {
 
 // Better Auth tables
 model User {
-  id            String   @id @default(cuid())
+  id            String   @id @default(nanoid())
   name          String?
   email         String   @unique
   emailVerified Boolean  @default(false) @map("email_verified")
@@ -39,7 +39,7 @@ model User {
 }
 
 model Session {
-  id        String   @id @default(cuid())
+  id        String   @id @default(nanoid())
   expiresAt DateTime @map("expires_at")
   token     String   @unique
   createdAt DateTime @default(now()) @map("created_at")
@@ -54,7 +54,7 @@ model Session {
 }
 
 model Account {
-  id                    String    @id @default(cuid())
+  id                    String    @id @default(nanoid())
   accountId             String    @map("account_id")
   providerId            String    @map("provider_id")
   userId                String    @map("user_id")
@@ -75,7 +75,7 @@ model Account {
 }
 
 model Verification {
-  id         String   @id @default(cuid())
+  id         String   @id @default(nanoid())
   identifier String
   value      String
   expiresAt  DateTime @map("expires_at")

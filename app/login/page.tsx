@@ -1,22 +1,28 @@
 "use client"
 
 import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { Eye, EyeOff } from "lucide-react"
 import { signIn } from "@/lib/auth-client"
+import { claimChatSession } from "@/lib/actions/sessions"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { toast } from "sonner"
 
 export default function LoginPage() {
-  const router = useRouter()
+  const searchParams = useSearchParams()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
+  
+  // Get sessionId and returnUrl from query params
+  const sessionId = searchParams.get("sessionId")
+  const returnUrl = searchParams.get("returnUrl") || "/"
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -32,9 +38,31 @@ export default function LoginPage() {
       if (result.error) {
         setError(result.error.message || "Failed to sign in")
       } else {
-        // Successful login - redirect to home
-        router.push("/")
-        router.refresh()
+        // Successful login - claim session if sessionId exists
+        if (sessionId) {
+          try {
+            await claimChatSession(sessionId)
+            toast.success("Your conversation has been saved to your account!")
+          } catch (claimError) {
+            console.error("Failed to claim session:", claimError)
+            // Still redirect even if claiming fails
+            toast.error(
+              claimError instanceof Error 
+                ? claimError.message 
+                : "Failed to claim session, but you can continue"
+            )
+          }
+        }
+
+        // Redirect to returnUrl with session query param if sessionId exists
+        let redirectUrl = returnUrl
+        if (sessionId) {
+          const separator = returnUrl.includes('?') ? '&' : '?'
+          redirectUrl = `${returnUrl}${separator}session=${sessionId}`
+        }
+        
+        // Use window.location for reliable navigation after auth state change
+        window.location.href = redirectUrl
       }
     } catch (err) {
       setError("An unexpected error occurred")
@@ -104,7 +132,13 @@ export default function LoginPage() {
           </form>
           <div className="mt-4 text-center text-sm">
             Don't have an account?{" "}
-            <Link href="/signup" className="text-blue-600 hover:underline">
+            <Link 
+              href={`/signup${sessionId || returnUrl !== '/' ? `?${new URLSearchParams({
+                ...(returnUrl !== '/' && { returnUrl }),
+                ...(sessionId && { sessionId }),
+              }).toString()}` : ''}`}
+              className="text-blue-600 hover:underline"
+            >
               Sign up
             </Link>
           </div>
