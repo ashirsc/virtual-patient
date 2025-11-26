@@ -41,3 +41,12 @@ export async function requireAuthPage() {
 
   return session.user;
 }
+
+/**
+ * Get optional authentication - returns user if authenticated, null otherwise
+ * Does not throw or redirect
+ */
+export async function getOptionalAuth() {
+  const session = await getSession();
+  return session?.user || null;
+}

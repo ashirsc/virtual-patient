@@ -1,34 +1,60 @@
 "use client"
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { useState, useEffect } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import { PanelGroup, Panel, PanelResizeHandle } from "react-resizable-panels"
-import { Plus } from "lucide-react"
+import { Plus, ArrowLeft, Loader2 } from "lucide-react"
 import PatientWorkspace from "@/components/patient-workspace"
 import { Button } from "@/components/ui/button"
 import { signOut } from "@/lib/auth-client"
 import { createPatientActor } from "@/lib/actions/patient-actors"
+import { toast } from "sonner"
 import type { PatientActor } from "@/lib/generated/client"
+import Link from "next/link"
 
-interface HomeClientProps {
+interface PatientActorsClientProps {
   patientActors: PatientActor[]
   userName: string | null
   userRole: string
   submissions: any[]
 }
 
-export default function HomeClient({ patientActors, userName, userRole, submissions }: HomeClientProps) {
+export default function PatientActorsClient({ 
+  patientActors, 
+  userName, 
+  userRole, 
+  submissions 
+}: PatientActorsClientProps) {
   const router = useRouter()
-  const [selectedPatient, setSelectedPatient] = useState<PatientActor | null>(
-    patientActors[0] || null
-  )
+  const searchParams = useSearchParams()
+  
   const [patients, setPatients] = useState<PatientActor[]>(patientActors)
   const [isCreating, setIsCreating] = useState(false)
+  const [isSigningOut, setIsSigningOut] = useState(false)
+
+  // Find selected patient from URL or default to first
+  const selectedId = searchParams.get('id')
+  const initialPatient = selectedId 
+    ? patients.find(p => p.id === selectedId) || patients[0] 
+    : patients[0]
+  const [selectedPatient, setSelectedPatient] = useState<PatientActor | null>(initialPatient || null)
+
+  // Handle create param in URL
+  useEffect(() => {
+    if (searchParams.get('create') === 'true' && !isCreating) {
+      handleCreatePatient()
+    }
+  }, [searchParams])
 
   const handleSignOut = async () => {
-    await signOut()
-    router.push("/login")
-    router.refresh()
+    setIsSigningOut(true)
+    try {
+      await signOut()
+      router.push("/login")
+      router.refresh()
+    } finally {
+      setIsSigningOut(false)
+    }
   }
 
   const handlePatientUpdate = (updatedPatient: PatientActor) => {
@@ -62,11 +88,22 @@ export default function HomeClient({ patientActors, userName, userRole, submissi
 
       setPatients(prev => [newPatient, ...prev])
       setSelectedPatient(newPatient)
+      toast.success("Patient actor created!")
+      
+      // Clear the create param from URL
+      router.replace('/patient-actors')
     } catch (error) {
       console.error("Error creating patient:", error)
+      toast.error("Failed to create patient actor")
     } finally {
       setIsCreating(false)
     }
+  }
+
+  const handleSelectPatient = (patient: PatientActor) => {
+    setSelectedPatient(patient)
+    // Update URL without full navigation
+    router.replace(`/patient-actors?id=${patient.id}`, { scroll: false })
   }
 
   return (
@@ -74,16 +111,37 @@ export default function HomeClient({ patientActors, userName, userRole, submissi
       {/* Header */}
       <header className="bg-white border-b px-6 py-4 shadow-sm">
         <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Patient Actor</h1>
-            <p className="text-sm text-gray-600">Medical Diagnosis Training Simulation</p>
+          <div className="flex items-center gap-4">
+            <Link href="/">
+              <Button variant="ghost" size="sm" className="gap-2">
+                <ArrowLeft className="h-4 w-4" />
+                Dashboard
+              </Button>
+            </Link>
+            <div className="h-6 w-px bg-gray-300" />
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">Patient Actors</h1>
+              <p className="text-sm text-gray-600">Create and manage your virtual patients</p>
+            </div>
           </div>
           <div className="flex items-center gap-4">
             <span className="text-sm text-gray-600">
               {userName && `Welcome, ${userName}`}
             </span>
-            <Button variant="outline" size="sm" onClick={handleSignOut}>
-              Sign Out
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleSignOut}
+              disabled={isSigningOut}
+            >
+              {isSigningOut ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Signing out...
+                </>
+              ) : (
+                'Sign Out'
+              )}
             </Button>
           </div>
         </div>
@@ -102,8 +160,17 @@ export default function HomeClient({ patientActors, userName, userRole, submissi
                 onClick={handleCreatePatient}
                 disabled={isCreating}
               >
-                <Plus className="h-4 w-4 mr-2" />
-                {isCreating ? "Creating..." : "Create Patient Actor"}
+                {isCreating ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Creating...
+                  </>
+                ) : (
+                  <>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Create Patient Actor
+                  </>
+                )}
               </Button>
             </div>
           </div>
@@ -120,15 +187,24 @@ export default function HomeClient({ patientActors, userName, userRole, submissi
                     className="w-full"
                     size="sm"
                   >
-                    <Plus className="h-4 w-4 mr-2" />
-                    {isCreating ? "Creating..." : "Create New Patient"}
+                    {isCreating ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Creating...
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Create New Patient
+                      </>
+                    )}
                   </Button>
                 </div>
                 <div className="space-y-2 flex-1 overflow-y-auto">
                   {patients.map((patient) => (
                     <button
                       key={patient.id}
-                      onClick={() => setSelectedPatient(patient)}
+                      onClick={() => handleSelectPatient(patient)}
                       className={`w-full text-left p-3 rounded-lg transition-colors ${selectedPatient?.id === patient.id
                         ? "bg-blue-50 border-2 border-blue-500"
                         : "bg-gray-50 hover:bg-gray-100 border-2 border-transparent"
@@ -171,3 +247,4 @@ export default function HomeClient({ patientActors, userName, userRole, submissi
     </div>
   )
 }
+

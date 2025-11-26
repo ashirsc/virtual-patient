@@ -84,6 +84,7 @@ export async function getStudentSessions() {
                         id: true,
                         name: true,
                         age: true,
+                        slug: true,
                     },
                 },
                 submittedSession: {
@@ -527,6 +528,50 @@ export async function claimChatSession(sessionId: string): Promise<void> {
         throw new Error(
             error instanceof Error ? error.message : "Failed to claim chat session"
         )
+    }
+}
+
+/**
+ * Get a session by ID for the current user (authenticated)
+ * Returns session with messages if user owns it
+ */
+export async function getSessionById(sessionId: string) {
+    try {
+        const user = await requireAuth()
+
+        const session = await prisma.chatSession.findUnique({
+            where: { id: sessionId },
+            include: {
+                patientActor: {
+                    select: {
+                        id: true,
+                        name: true,
+                        age: true,
+                        slug: true,
+                    },
+                },
+                submittedSession: {
+                    select: {
+                        id: true,
+                        status: true,
+                    },
+                },
+            },
+        })
+
+        if (!session) {
+            return null
+        }
+
+        // Only return if user owns the session
+        if (session.userId !== user.id) {
+            return null
+        }
+
+        return session
+    } catch (error) {
+        console.error("Error fetching session by ID:", error)
+        return null
     }
 }
 

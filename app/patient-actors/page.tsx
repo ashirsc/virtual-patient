@@ -1,11 +1,11 @@
 import { requireAuthPage } from "@/lib/auth-utils"
 import { getMyPatientActors } from "@/lib/actions/patient-actors"
-import { getSubmittedSessions, getStudentSessions } from "@/lib/actions/sessions"
+import { getSubmittedSessions } from "@/lib/actions/sessions"
 import prisma from "@/lib/prisma"
-import StudentHome from "@/components/student-home"
-import InstructorHome from "@/components/instructor-home"
+import { redirect } from "next/navigation"
+import PatientActorsClient from "./page-client"
 
-export default async function Home() {
+export default async function PatientActorsPage() {
   const authUser = await requireAuthPage()
 
   // Get full user from database to access role
@@ -15,22 +15,14 @@ export default async function Home() {
 
   const userRole = user?.role || "student"
 
-  // Render different views based on role
+  // Only instructors and admins can access this page
   if (userRole === "student") {
-    // Student view: show their conversation history
-    const sessions = await getStudentSessions()
-    
-    return (
-      <StudentHome
-        sessions={sessions}
-        userName={authUser.name}
-      />
-    )
+    redirect("/")
   }
 
-  // Instructor/Admin view: show dashboard
   const patientActors = await getMyPatientActors()
-  
+
+  // Get submissions for the workspace
   let submissions: any[] = []
   try {
     submissions = await getSubmittedSessions()
@@ -39,10 +31,12 @@ export default async function Home() {
   }
 
   return (
-    <InstructorHome
+    <PatientActorsClient
       patientActors={patientActors}
-      submissions={submissions}
       userName={authUser.name}
+      userRole={userRole}
+      submissions={submissions}
     />
   )
 }
+

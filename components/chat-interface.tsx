@@ -1,7 +1,7 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { Loader2, Save, X, Send as SendIcon } from "lucide-react"
+import { useState, useEffect, useRef } from "react"
+import { Loader2, Save, X, Send as SendIcon, CheckCircle } from "lucide-react"
 import { generatePublicResponse } from "@/lib/actions/chat"
 import { 
   createChatSession, 
@@ -34,41 +34,60 @@ interface ChatInterfaceProps {
   patientAge?: number
   isPublic?: boolean // If true, uses public access (no auth required)
   isTestMode?: boolean // If true, hides submission features
+  initialSessionId?: string // Optional: load an existing session
+  initialMessages?: MessageType[] // Optional: pre-populate messages
+  isSubmitted?: boolean // Optional: whether this session has been submitted
 }
 
-export default function ChatInterface({ patientId, patientName, patientAge, isPublic = false, isTestMode = false }: ChatInterfaceProps) {
-  const [messages, setMessages] = useState<MessageType[]>([])
+export default function ChatInterface({ 
+  patientId, 
+  patientName, 
+  patientAge, 
+  isPublic = false, 
+  isTestMode = false,
+  initialSessionId,
+  initialMessages,
+  isSubmitted = false
+}: ChatInterfaceProps) {
+  const [messages, setMessages] = useState<MessageType[]>(initialMessages || [])
   const [isLoading, setIsLoading] = useState(false)
-  const [sessionId, setSessionId] = useState<string | null>(null)
+  const [sessionId, setSessionId] = useState<string | null>(initialSessionId || null)
   const [isSaving, setIsSaving] = useState(false)
   const [showLoginPrompt, setShowLoginPrompt] = useState(false)
   const [showSubmitDialog, setShowSubmitDialog] = useState(false)
   const [instructors, setInstructors] = useState<Array<{ id: string; name: string | null; email: string }>>([])
   const [selectedInstructor, setSelectedInstructor] = useState<string>("")
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [hasBeenSubmitted, setHasBeenSubmitted] = useState(isSubmitted)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const { data: session, isPending } = useSession()
   const isAuthenticated = !!session?.user
-  const previousAuthState = useState<boolean | null>(null)[0]
-  const [, setPreviousAuthState] = useState<boolean | null>(null)
+  const [previousAuthState, setPreviousAuthState] = useState<boolean | null>(null)
 
-  // Load session ID from localStorage on mount
+  // Scroll to bottom when messages change
   useEffect(() => {
-    const storedSessionId = localStorage.getItem(`chat-session-${patientId}`)
-    if (storedSessionId) {
-      setSessionId(storedSessionId)
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+  }, [messages])
+
+  // Load session ID from localStorage on mount (only if not provided via props)
+  useEffect(() => {
+    if (!initialSessionId) {
+      const storedSessionId = localStorage.getItem(`chat-session-${patientId}`)
+      if (storedSessionId) {
+        setSessionId(storedSessionId)
+      }
     }
-  }, [patientId])
+  }, [patientId, initialSessionId])
 
   // Claim anonymous session when user logs in
   useEffect(() => {
     const handleSessionClaim = async () => {
       // Detect login transition (from not authenticated to authenticated)
-      if (previousAuthState === false && isAuthenticated && sessionId) {
+      if (previousAuthState === false && isAuthenticated && sessionId && !initialSessionId) {
         try {
           await claimChatSession(sessionId)
           toast.success("Your conversation has been saved to your account!")
-          // Keep the session ID in localStorage for now (will be cleared on navigation)
         } catch (error) {
           console.error("Failed to claim session:", error)
           // If claiming fails, create a new authenticated session
@@ -86,19 +105,17 @@ export default function ChatInterface({ patientId, patientName, patientAge, isPu
 
     handleSessionClaim()
     setPreviousAuthState(isAuthenticated)
-  }, [isAuthenticated, previousAuthState, sessionId, patientId])
+  }, [isAuthenticated, previousAuthState, sessionId, patientId, initialSessionId])
 
-  // Auto-create session on first message
+  // Auto-create session on first message (only if not using an existing session)
   useEffect(() => {
     const createSession = async () => {
-      if (!sessionId && messages.length > 0) {
+      if (!sessionId && messages.length > 0 && !initialSessionId) {
         try {
           let newSessionId: string
           if (isAuthenticated) {
-            // Create authenticated session
             newSessionId = await createChatSession(patientId)
           } else {
-            // Create anonymous session
             newSessionId = await createAnonymousChatSession(patientId)
           }
           setSessionId(newSessionId)
@@ -110,10 +127,13 @@ export default function ChatInterface({ patientId, patientName, patientAge, isPu
     }
 
     createSession()
-  }, [sessionId, messages.length, patientId, isAuthenticated])
+  }, [sessionId, messages.length, patientId, isAuthenticated, initialSessionId])
 
-  // Auto-save messages (debounced) - works for both authenticated and anonymous users
+  // Auto-save messages (debounced)
   useEffect(() => {
+    // Don't auto-save if this is a submitted session being viewed
+    if (hasBeenSubmitted) return
+    
     if (sessionId && messages.length > 0) {
       const timer = setTimeout(() => {
         setIsSaving(true)
@@ -129,35 +149,32 @@ export default function ChatInterface({ patientId, patientName, patientAge, isPu
             console.error("Failed to save session:", error)
             setIsSaving(false)
           })
-      }, 1000) // Debounce for 1 second
+      }, 1000)
 
       return () => clearTimeout(timer)
     }
-  }, [isAuthenticated, sessionId, messages])
+  }, [isAuthenticated, sessionId, messages, hasBeenSubmitted])
 
-  // Show login prompt for guests after 3+ messages
+  // Show login prompt for guests after 3+ exchanges
   useEffect(() => {
     if (!isAuthenticated && !isPending && messages.length >= 6) {
-      // 6 messages = 3 exchanges
       setShowLoginPrompt(true)
     }
   }, [isAuthenticated, isPending, messages.length])
 
   const handleSendMessage = async (input: string) => {
-    if (!input.trim() || !patientId) return
+    if (!input.trim() || !patientId || hasBeenSubmitted) return
 
     const userMessage: MessageType = {
       role: "user",
       content: input,
     }
 
-    // Add user message
     const updatedMessages = [...messages, userMessage]
     setMessages(updatedMessages)
     setIsLoading(true)
 
     try {
-      // Use public response (guests and authenticated users both allowed)
       const response = await generatePublicResponse(patientId, updatedMessages)
 
       const assistantMessage: MessageType = {
@@ -188,6 +205,7 @@ export default function ChatInterface({ patientId, patientName, patientAge, isPu
       setShowSubmitDialog(true)
     } catch (error) {
       console.error("Failed to load instructors:", error)
+      toast.error("Failed to load instructors")
     }
   }
 
@@ -198,10 +216,11 @@ export default function ChatInterface({ patientId, patientName, patientAge, isPu
     try {
       await submitSessionToInstructor(sessionId, selectedInstructor)
       setShowSubmitDialog(false)
-      alert("Session submitted successfully!")
+      setHasBeenSubmitted(true)
+      toast.success("Session submitted successfully!")
     } catch (error) {
       console.error("Failed to submit session:", error)
-      alert(error instanceof Error ? error.message : "Failed to submit session")
+      toast.error(error instanceof Error ? error.message : "Failed to submit session")
     } finally {
       setIsSubmitting(false)
     }
@@ -214,25 +233,36 @@ export default function ChatInterface({ patientId, patientName, patientAge, isPu
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-lg font-semibold">Chat with {patientName}</h2>
-            <p className="text-sm text-gray-600">Begin the medical interview</p>
+            <p className="text-sm text-gray-600">
+              {hasBeenSubmitted ? "This session has been submitted for grading" : "Begin the medical interview"}
+            </p>
           </div>
           <div className="flex items-center gap-2">
-            {isSaving && sessionId && (
-              <div className="flex items-center gap-1 text-sm text-gray-500">
-                <Save className="h-4 w-4 animate-pulse" />
-                <span>Saving...</span>
-              </div>
-            )}
-            {!isSaving && sessionId && (
+            {hasBeenSubmitted ? (
               <div className="flex items-center gap-1 text-sm text-green-600">
-                <Save className="h-4 w-4" />
-                <span>Saved</span>
+                <CheckCircle className="h-4 w-4" />
+                <span>Submitted</span>
               </div>
-            )}
-            {!isTestMode && isAuthenticated && messages.length >= 10 && sessionId && (
-              <Button onClick={handleOpenSubmitDialog} size="sm" variant="outline">
-                Submit for Grading
-              </Button>
+            ) : (
+              <>
+                {isSaving && sessionId && (
+                  <div className="flex items-center gap-1 text-sm text-gray-500">
+                    <Save className="h-4 w-4 animate-pulse" />
+                    <span>Saving...</span>
+                  </div>
+                )}
+                {!isSaving && sessionId && (
+                  <div className="flex items-center gap-1 text-sm text-green-600">
+                    <Save className="h-4 w-4" />
+                    <span>Saved</span>
+                  </div>
+                )}
+                {!isTestMode && isAuthenticated && messages.length >= 10 && sessionId && (
+                  <Button onClick={handleOpenSubmitDialog} size="sm" variant="outline">
+                    Submit for Grading
+                  </Button>
+                )}
+              </>
             )}
           </div>
         </div>
@@ -261,6 +291,11 @@ export default function ChatInterface({ patientId, patientName, patientAge, isPu
 
       {/* Messages Area */}
       <div className="flex-1 overflow-auto p-4 space-y-4 min-h-0">
+        {messages.length === 0 && (
+          <div className="flex items-center justify-center h-full text-gray-500">
+            <p className="text-sm">Start the conversation by asking the patient a question.</p>
+          </div>
+        )}
         {messages.map((message, index) => (
           <div key={index} className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}>
             <div
@@ -269,7 +304,7 @@ export default function ChatInterface({ patientId, patientName, patientAge, isPu
                 : "bg-gray-100 text-gray-900 rounded-bl-none"
                 }`}
             >
-              <p className="text-sm">{message.content}</p>
+              <p className="text-sm whitespace-pre-wrap">{message.content}</p>
             </div>
           </div>
         ))}
@@ -282,40 +317,47 @@ export default function ChatInterface({ patientId, patientName, patientAge, isPu
             </div>
           </div>
         )}
+        <div ref={messagesEndRef} />
       </div>
 
       {/* Input Area */}
       <div className="p-4 border-t bg-gray-50 flex-shrink-0">
-        <div className="flex gap-2">
-          <input
-            type="text"
-            placeholder="Ask the patient a question..."
-            onKeyPress={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault()
-                const input = (e.target as HTMLInputElement).value
-                handleSendMessage(input)
-                  ; (e.target as HTMLInputElement).value = ""
-              }
-            }}
-            disabled={isLoading}
-            className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 bg-white"
-          />
-          <button
-            onClick={() => {
-              const input = document.querySelector("input") as HTMLInputElement
-              if (input) {
-                handleSendMessage(input.value)
-                input.value = ""
-              }
-            }}
-            disabled={isLoading}
-            className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-1"
-          >
-            <SendIcon className="h-4 w-4" />
-            Send
-          </button>
-        </div>
+        {hasBeenSubmitted ? (
+          <div className="text-center text-sm text-gray-500 py-2">
+            This session has been submitted and cannot be edited.
+          </div>
+        ) : (
+          <div className="flex gap-2">
+            <input
+              type="text"
+              placeholder="Ask the patient a question..."
+              onKeyPress={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault()
+                  const input = (e.target as HTMLInputElement).value
+                  handleSendMessage(input)
+                  ;(e.target as HTMLInputElement).value = ""
+                }
+              }}
+              disabled={isLoading}
+              className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 bg-white"
+            />
+            <button
+              onClick={() => {
+                const input = document.querySelector("input") as HTMLInputElement
+                if (input) {
+                  handleSendMessage(input.value)
+                  input.value = ""
+                }
+              }}
+              disabled={isLoading}
+              className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-1"
+            >
+              <SendIcon className="h-4 w-4" />
+              Send
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Submit Dialog */}
@@ -346,7 +388,14 @@ export default function ChatInterface({ patientId, patientName, patientAge, isPu
               Cancel
             </Button>
             <Button onClick={handleSubmit} disabled={!selectedInstructor || isSubmitting}>
-              {isSubmitting ? "Submitting..." : "Submit"}
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Submitting...
+                </>
+              ) : (
+                "Submit"
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
