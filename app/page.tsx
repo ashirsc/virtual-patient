@@ -43,6 +43,7 @@ export default async function Home() {
       patientActors={patientActors}
       submissions={submissions}
       userName={authUser.name}
+      isAdmin={userRole === "admin"}
     />
   )
 }

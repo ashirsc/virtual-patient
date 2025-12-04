@@ -13,7 +13,8 @@ import {
   ChevronRight,
   Plus,
   Loader2,
-  AlertTriangle
+  AlertTriangle,
+  UserCog
 } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -49,9 +50,10 @@ interface InstructorHomeProps {
   patientActors: PatientActor[]
   submissions: SubmissionWithDetails[]
   userName: string | null
+  isAdmin?: boolean
 }
 
-export default function InstructorHome({ patientActors, submissions, userName }: InstructorHomeProps) {
+export default function InstructorHome({ patientActors, submissions, userName, isAdmin = false }: InstructorHomeProps) {
   const router = useRouter()
   const [isSigningOut, setIsSigningOut] = useState(false)
 
@@ -109,6 +111,14 @@ export default function InstructorHome({ patientActors, submissions, userName }:
               </p>
             </div>
             <div className="flex items-center gap-3">
+              {isAdmin && (
+                <Link href="/admin/users">
+                  <Button variant="outline" className="gap-2">
+                    <UserCog className="h-4 w-4" />
+                    Admin
+                  </Button>
+                </Link>
+              )}
               <Link href="/patient-actors">
                 <Button variant="default" className="gap-2">
                   <Stethoscope className="h-4 w-4" />
