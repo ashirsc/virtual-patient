@@ -6,9 +6,7 @@ import Link from "next/link"
 import { 
   FileText, 
   Clock, 
-  CheckCircle, 
   GraduationCap,
-  Users,
   Stethoscope,
   ChevronRight,
   Plus,
@@ -19,6 +17,7 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { signOut } from "@/lib/auth-client"
 import type { PatientActor } from "@/lib/generated/client"
 
@@ -56,6 +55,11 @@ interface InstructorHomeProps {
 export default function InstructorHome({ patientActors, submissions, userName, isAdmin = false }: InstructorHomeProps) {
   const router = useRouter()
   const [isSigningOut, setIsSigningOut] = useState(false)
+
+  const handleViewChange = (view: string) => {
+    document.cookie = `adminView=${view}; path=/`
+    router.refresh()
+  }
 
   const handleSignOut = async () => {
     setIsSigningOut(true)
@@ -112,6 +116,14 @@ export default function InstructorHome({ patientActors, submissions, userName, i
             </div>
             <div className="flex items-center gap-3">
               {isAdmin && (
+                <Tabs defaultValue="instructor" onValueChange={handleViewChange}>
+                  <TabsList>
+                    <TabsTrigger value="instructor">Instructor</TabsTrigger>
+                    <TabsTrigger value="student">Student</TabsTrigger>
+                  </TabsList>
+                </Tabs>
+              )}
+              {isAdmin && (
                 <Link href="/admin/users">
                   <Button variant="outline" className="gap-2">
                     <UserCog className="h-4 w-4" />
@@ -119,12 +131,6 @@ export default function InstructorHome({ patientActors, submissions, userName, i
                   </Button>
                 </Link>
               )}
-              <Link href="/patient-actors">
-                <Button variant="default" className="gap-2">
-                  <Stethoscope className="h-4 w-4" />
-                  Manage Patient Actors
-                </Button>
-              </Link>
               <Button 
                 variant="outline" 
                 size="sm" 

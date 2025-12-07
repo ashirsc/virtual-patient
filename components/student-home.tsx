@@ -7,7 +7,6 @@ import {
   MessageSquare,
   Clock,
   CheckCircle,
-  AlertCircle,
   ChevronRight,
   Plus,
   User,
@@ -17,6 +16,7 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { signOut } from "@/lib/auth-client"
 
 type SessionWithDetails = {
@@ -42,6 +42,7 @@ type SessionWithDetails = {
 interface StudentHomeProps {
   sessions: SessionWithDetails[]
   userName: string | null
+  isAdmin?: boolean
 }
 
 // Group sessions by patient actor
@@ -65,9 +66,14 @@ function groupSessionsByPatient(sessions: SessionWithDetails[]) {
   return Array.from(grouped.values())
 }
 
-export default function StudentHome({ sessions, userName }: StudentHomeProps) {
+export default function StudentHome({ sessions, userName, isAdmin = false }: StudentHomeProps) {
   const router = useRouter()
   const [isSigningOut, setIsSigningOut] = useState(false)
+
+  const handleViewChange = (view: string) => {
+    document.cookie = `adminView=${view}; path=/`
+    router.refresh()
+  }
 
   const handleSignOut = async () => {
     setIsSigningOut(true)
@@ -119,21 +125,31 @@ export default function StudentHome({ sessions, userName }: StudentHomeProps) {
                 {userName ? `Welcome back, ${userName}` : 'Your conversation history'}
               </p>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleSignOut}
-              disabled={isSigningOut}
-            >
-              {isSigningOut ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Signing out...
-                </>
-              ) : (
-                'Sign Out'
+            <div className="flex items-center gap-3">
+              {isAdmin && (
+                <Tabs defaultValue="student" onValueChange={handleViewChange}>
+                  <TabsList>
+                    <TabsTrigger value="instructor">Instructor</TabsTrigger>
+                    <TabsTrigger value="student">Student</TabsTrigger>
+                  </TabsList>
+                </Tabs>
               )}
-            </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleSignOut}
+                disabled={isSigningOut}
+              >
+                {isSigningOut ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Signing out...
+                  </>
+                ) : (
+                  'Sign Out'
+                )}
+              </Button>
+            </div>
           </div>
         </div>
       </header>

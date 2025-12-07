@@ -1,3 +1,4 @@
+import { cookies } from "next/headers"
 import { requireAuthPage } from "@/lib/auth-utils"
 import { getMyPatientActors } from "@/lib/actions/patient-actors"
 import { getSubmittedSessions, getStudentSessions } from "@/lib/actions/sessions"
@@ -14,9 +15,10 @@ export default async function Home() {
   })
 
   const userRole = user?.role || "student"
+  const adminView = (await cookies()).get("adminView")?.value
 
   // Render different views based on role
-  if (userRole === "student") {
+  if (userRole === "student" || (userRole === "admin" && adminView === "student")) {
     // Student view: show their conversation history
     const sessions = await getStudentSessions()
 
@@ -24,6 +26,7 @@ export default async function Home() {
       <StudentHome
         sessions={sessions}
         userName={authUser.name}
+        isAdmin={userRole === "admin"}
       />
     )
   }

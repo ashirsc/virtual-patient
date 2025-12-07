@@ -2,6 +2,7 @@
 
 import prisma from "@/lib/prisma"
 import { requireAuth } from "@/lib/auth-utils"
+import type { UserRole } from "@/lib/generated/prisma"
 
 /**
  * Require admin authentication
@@ -43,5 +44,23 @@ export async function getAllUsers() {
   
   return users
 }
+
+/**
+ * Update a user's role
+ * Only accessible by admins. Admins cannot change their own role.
+ */
+export async function updateUserRole(userId: string, newRole: UserRole) {
+  const admin = await requireAdminAuth()
+  
+  if (admin.id === userId) {
+    throw new Error("Cannot change your own role")
+  }
+  
+  await prisma.user.update({
+    where: { id: userId },
+    data: { role: newRole },
+  })
+}
+
 
 

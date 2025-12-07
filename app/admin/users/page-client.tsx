@@ -23,9 +23,17 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { signOut, authClient } from "@/lib/auth-client"
 import { toast } from "sonner"
 import type { UserRole } from "@/lib/generated/prisma"
+import { updateUserRole } from "@/lib/actions/admin"
 
 type UserData = {
   id: string
@@ -45,6 +53,21 @@ export default function UsersClient({ users, currentUserId, adminName }: UsersCl
   const router = useRouter()
   const [isSigningOut, setIsSigningOut] = useState(false)
   const [impersonatingUserId, setImpersonatingUserId] = useState<string | null>(null)
+  const [updatingRoleUserId, setUpdatingRoleUserId] = useState<string | null>(null)
+
+  const handleRoleChange = async (userId: string, newRole: UserRole) => {
+    setUpdatingRoleUserId(userId)
+    try {
+      await updateUserRole(userId, newRole)
+      toast.success("User role updated successfully")
+      router.refresh()
+    } catch (error) {
+      console.error("Role update error:", error)
+      toast.error(error instanceof Error ? error.message : "Failed to update user role")
+    } finally {
+      setUpdatingRoleUserId(null)
+    }
+  }
 
   const handleSignOut = async () => {
     setIsSigningOut(true)
@@ -230,7 +253,48 @@ export default function UsersClient({ users, currentUserId, adminName }: UsersCl
                       )}
                     </TableCell>
                     <TableCell className="text-gray-600">{user.email}</TableCell>
-                    <TableCell>{getRoleBadge(user.role)}</TableCell>
+                    <TableCell>
+                      {user.id === currentUserId ? (
+                        getRoleBadge(user.role)
+                      ) : (
+                        <Select
+                          value={user.role}
+                          onValueChange={(value) => handleRoleChange(user.id, value as UserRole)}
+                          disabled={updatingRoleUserId === user.id}
+                        >
+                          <SelectTrigger className="w-[140px]">
+                            {updatingRoleUserId === user.id ? (
+                              <div className="flex items-center gap-2">
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                                <span>Updating...</span>
+                              </div>
+                            ) : (
+                              <SelectValue />
+                            )}
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="student">
+                              <div className="flex items-center gap-2">
+                                <User className="h-3 w-3" />
+                                Student
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="instructor">
+                              <div className="flex items-center gap-2">
+                                <GraduationCap className="h-3 w-3 text-blue-600" />
+                                Instructor
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="admin">
+                              <div className="flex items-center gap-2">
+                                <Shield className="h-3 w-3 text-purple-600" />
+                                Admin
+                              </div>
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                      )}
+                    </TableCell>
                     <TableCell className="text-gray-500">{formatDate(user.createdAt)}</TableCell>
                     <TableCell className="text-right">
                       {user.id !== currentUserId ? (
