@@ -30,7 +30,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { signOut, authClient } from "@/lib/auth-client"
+import { signOut, authClient, useSession } from "@/lib/auth-client"
 import { toast } from "sonner"
 import type { UserRole } from "@/lib/generated/prisma"
 import { updateUserRole } from "@/lib/actions/admin"
@@ -51,6 +51,7 @@ interface UsersClientProps {
 
 export default function UsersClient({ users, currentUserId, adminName }: UsersClientProps) {
   const router = useRouter()
+  const { refetch } = useSession()
   const [isSigningOut, setIsSigningOut] = useState(false)
   const [impersonatingUserId, setImpersonatingUserId] = useState<string | null>(null)
   const [updatingRoleUserId, setUpdatingRoleUserId] = useState<string | null>(null)
@@ -92,6 +93,7 @@ export default function UsersClient({ users, currentUserId, adminName }: UsersCl
       }
       
       toast.success("Now impersonating user")
+      await refetch()
       router.push("/")
       router.refresh()
     } catch (error) {

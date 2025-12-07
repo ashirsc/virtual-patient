@@ -9,7 +9,7 @@ import { toast } from "sonner"
 
 export default function ImpersonationBanner() {
   const router = useRouter()
-  const { data: session } = useSession()
+  const { data: session, refetch } = useSession()
   const [isStopping, setIsStopping] = useState(false)
 
   // Check if this is an impersonation session
@@ -30,6 +30,7 @@ export default function ImpersonationBanner() {
       }
       
       toast.success("Stopped impersonating user")
+      await refetch()
       router.push("/admin/users")
       router.refresh()
     } catch (error) {
