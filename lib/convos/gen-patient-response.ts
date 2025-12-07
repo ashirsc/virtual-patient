@@ -34,6 +34,7 @@ export async function generatePatientResponse(
 
     // Build system prompt from structured fields
     const structuredData: StructuredPrompt = {
+        name: patient.name,
         demographics: patient.demographics || '',
         chiefComplaint: patient.chiefComplaint || '',
         medicalHistory: patient.medicalHistory || '',

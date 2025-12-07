@@ -434,13 +434,13 @@ const PatientEditor = forwardRef<PatientEditorRef, PatientEditorProps>(({ patien
             <Dialog open={showPreview} onOpenChange={setShowPreview}>
                 <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
                     <DialogHeader>
-                        <DialogTitle>Full Prompt Preview</DialogTitle>
+                        <DialogTitle>System Prompt Preview</DialogTitle>
                         <DialogDescription>
-                            This is how your structured data will be formatted as a prompt for the AI
+                            This is the full system prompt that will be sent to the AI
                         </DialogDescription>
                     </DialogHeader>
                     <div className="mt-4 p-4 bg-gray-50 rounded-lg border">
-                        <pre className="whitespace-pre-wrap text-sm">{generateVPSystemPrompt(structuredData)}</pre>
+                        <pre className="whitespace-pre-wrap text-sm font-mono">{generateVPSystemPrompt({ ...structuredData, name })}</pre>
                     </div>
                 </DialogContent>
             </Dialog>

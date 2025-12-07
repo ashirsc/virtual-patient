@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
-import { Copy, Check, ExternalLink, Save, Loader2, Trash2 } from "lucide-react"
+import { Copy, Check, ExternalLink, Save, Loader2, Trash2, Eye } from "lucide-react"
 import PatientEditor, { type PatientEditorRef } from "@/components/patient-editor"
 import ChatInterface from "@/components/chat-interface"
 import PatientRubricEditor, { type PatientRubricEditorRef } from "@/components/patient-rubric-editor"
@@ -113,6 +113,14 @@ export default function PatientWorkspace({
                                 Share Link
                             </>
                         )}
+                    </Button>
+                    <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => patientEditorRef.current?.handlePreview()}
+                    >
+                        <Eye className="h-4 w-4 mr-1" />
+                        Preview Prompt
                     </Button>
                     <Button
                         size="sm"
